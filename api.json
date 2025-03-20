@@ -1,0 +1,1774 @@
+{
+    "openapi": "3.1.0",
+    "security": [
+        {
+            "apiKey": []
+        }
+    ],
+    "info": {
+        "title": "StealthEX API Reference",
+        "version": "",
+        "contact": {
+            "url": "https://stealthex.io/contacts",
+            "email": "support@stealthex.io"
+        },
+        "description": "\n## Introduction\n\nAdd StealthEX to your web app with our public API for fast and limitless\ncryptocurrency swaps. Create your own exchange or aggregator, embed StealthEX,\nand start earning today.\n\nOver 1500 Crypto Assets: Offer swaps of a wide range of cryptocurrencies.\n\nFlow of Your Choice: Depending on your needs, you can use floating or fixed\nrate, as well as reverse estimation (great for payment purposes).\n\nEarn Profit: Gain a standard 0.4% profit from each transaction or set up a\ncustom fee.\n\nFlexible Integration: Works perfectly with crypto wallets, aggregators, trading\nterminals, payment solutions and more.\n\n## Authentication\n\nTo access API endpoints, you must provide a valid API key. To get your API Key\nregister at https://stealthex.io/pp/.\n\nTo authenticate with API, you can supply the API key via bearer auth\n`Authorization: Bearer <YOUR_API_KEY>` or as part of the payload using\n`api_key` query parameter. Header based authentication is highly recommended\nso that your keys don't accidentally leak into logs.\n\n> ⚠️ Using API from client-side JavaScript is restricted due to CORS\n> (Cross-Origin Resource Sharing) configuration. This helps protect your API key\n> from being exposed to users of your application, preventing it from being\n> compromised. To keep your API key secure, route requests through your backend\n> service.\n\n## Errors\n\nAll successful API requests will be returned with a 2xx status code.\nIf there's an error while making the request, the appropriate status code is\nreturned with the error message:\n\n```json\n{\n  \"err\": {\n    \"kind\": \"...\",\n    \"details\": \"...\"\n  }\n}\n```\n\n## Rate limits\n\nThe current rate limit is 600 requests per *minute*.\n\nYou will see a 429 error response code if you hit the rate limit. \nTo see how long you should wait before making a follow-up request see *Retry-After* header \ncontaining [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-7.1.1.1) date.\n\n## Pagination\n\nAll top-level API resources have support for bulk fetches through \"list\" API\nmethods. These list API methods share a common structure and accept, at a\nminimum, the following two parameters: `limit` and `offset`.\n\nThe current default value for `limit` is **50 items**, and for `offset`, the\ndefault is **0**. This is reflected in each method's documentation.\n\nFor performance reasons, we limit items per page to a max of **250 items**.\n\nTo get all the resource data you have to manually loop over all the resource\npages, this is quite easy to do using the auto-pagination technique:\n\n```javascript\nconst BASE_URL = \"https://api.stealthex.io/v4\";\nconst RESOURCE = \"currencies\";\nconst API_KEY = \"your_api_key\";\nconst LIMIT = 250;\n\nlet data = [];\nlet page = 1;\n\nfor (; ; page += 1) {\n  const offset = (page - 1) * LIMIT;\n\n  const response = await fetch(\n    `${BASE_URL}/${RESOURCE}?limit=${LIMIT}&offset=${offset}`,\n    {\n      headers: {\n        Authorization: `Bearer ${API_KEY}`,\n      },\n    },\n  );\n\n  const body = await response.json();\n  data = data.concat(body);\n\n  if (body.length < LIMIT) {\n    break;\n  }\n}\n```\n\n## Request IDs\n\nEvery API request has a unique request identifier found in the response headers\nunder `Request-Id`. Provide this ID when contacting us for faster and more\nefficient support.\n\n## Custom fee\n\nSome methods accept the `additional_fee_percent` parameter to set a custom\npartner fee, adding to the standard 0.4%. This is needed to set up the fees\nneeded for your service in particular.\n\nExample: For a 1% profit, set `additional_fee_percent` to 0.6%.\n\n**Currently, custom fee is only available with floating rate exchanges.**\n\n## Signatures (optional)\n\nSome API responses may contain a signature under `Sx-Signature` header. This\nis an additional protective layer ensuring the validity of data.\n\nThe `Sx-Signature` header contains a unix timestamp and signature that you\nmust verify. The timestamp is prefixed by `t=`, and signature is prefixed by\n`s0=`.\n\n```\nSx-Signature: t=1716214920,s0=9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\n```\n\nSignatures are generated using a hash-based message authentication code\n([HMAC](https://en.wikipedia.org/wiki/HMAC)) with [SHA-256](https://en.wikipedia.org/wiki/SHA-2)\nencoded in hexadecimal format.\n\nTo verify signatures, you must complete the following steps:\n\n**Step 1: Extract the timestamp and signature from the header**\n\nSplit the header using the comma `,` as the separator to get a list of\nelements. For each element, split it using the equals `=` sign to separate it\ninto a prefix and value pair.\n\n**Step 2: Prepare the payload string**\n\nCreate the payload string by concatenating:\n\n1. The timestamp\n2. The dot `.` character\n3. The response body\n\n**Step 3: Determine the expected signature**\n\nCompute an HMAC with the SHA256 hash function. Use the signing secret as the\nkey, and the payload string as the message. To get your signing secret, message\nus at partners@stealthex.io.\n\n**Step 4: Compare the signatures**\n\nCompare the signature from the header with the expected signature. For an\nequality match, calculate the difference between the current timestamp and the\nreceived timestamp to check if it's within your allowed tolerance.\n\nTo protect against timing attacks, use a constant-time string comparison to\nmatch the expected signature with the received signature.\n\n## Versioning\n\nWhen we release backwards-incompatible changes, we increment the version number\nin the prefix. The current version is **v4**. If you need to view old\ndocumentation, see [/old-docs](/old-docs). \n"
+    },
+    "components": {
+        "securitySchemes": {
+            "apiKey": {
+                "type": "http",
+                "scheme": "bearer"
+            }
+        },
+        "schemas": {
+            "Range": {
+                "type": "object",
+                "properties": {
+                    "min_amount": {
+                        "type": "number"
+                    },
+                    "max_amount": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "min_amount",
+                    "max_amount"
+                ],
+                "example": {
+                    "min_amount": 0.00033283,
+                    "max_amount": null
+                }
+            },
+            "Estimate": {
+                "type": "object",
+                "properties": {
+                    "estimated_amount": {
+                        "type": "number"
+                    },
+                    "rate": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "valid_until": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "valid_until"
+                        ]
+                    }
+                },
+                "required": [
+                    "estimated_amount"
+                ],
+                "example": {
+                    "estimated_amount": 1.79565383
+                }
+            },
+            "Currency": {
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "The ticker symbol of the currency."
+                    },
+                    "network": {
+                        "type": "string",
+                        "description": "The blockchain network on which the currency operates."
+                    },
+                    "legacy_symbol": {
+                        "type": "string",
+                        "description": "Legacy ticker symbol used in APIs prior to version 4."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "The full name of the currency."
+                    },
+                    "rates": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "floating",
+                                "fixed"
+                            ]
+                        },
+                        "description": "Available rate types for the currency."
+                    },
+                    "features": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "custom_fee"
+                            ]
+                        },
+                        "description": "Special features supported by the currency."
+                    },
+                    "icon_url": {
+                        "type": "string",
+                        "description": "URL of the icon image representing the currency."
+                    },
+                    "precision": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "description": "Number of decimal places supported; can be null if unspecified."
+                    },
+                    "extra_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Additional ID if the currency supports Memo/Destination Tag."
+                    },
+                    "address_regex": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Regular expression for validating addresses of this currency."
+                    },
+                    "extra_id_regex": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Regular expression for validating extra IDs of this currency."
+                    },
+                    "contract_address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "A unique identifier (location, address) for a smart contract deployed on a blockchain."
+                    },
+                    "warnings": {
+                        "type": "object",
+                        "properties": {
+                            "deposit": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "withdrawal": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": [
+                            "deposit",
+                            "withdrawal"
+                        ],
+                        "description": "An object containing any warnings related to deposit and withdrawal."
+                    },
+                    "available_routes": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "symbol": {
+                                    "type": "string",
+                                    "description": "The ticker symbol of the paired currency."
+                                },
+                                "network": {
+                                    "type": "string",
+                                    "description": "The blockchain network on which the paired currency operates."
+                                },
+                                "rates": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                        "enum": [
+                                            "floating",
+                                            "fixed"
+                                        ]
+                                    },
+                                    "description": "Available rate types for the exchange."
+                                },
+                                "features": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                        "enum": [
+                                            "custom_fee"
+                                        ]
+                                    },
+                                    "description": "Special features supported for the exchange."
+                                }
+                            },
+                            "required": [
+                                "symbol",
+                                "network",
+                                "rates",
+                                "features"
+                            ]
+                        },
+                        "description": "List of available route pairs for the currency."
+                    }
+                },
+                "required": [
+                    "symbol",
+                    "network",
+                    "legacy_symbol",
+                    "name",
+                    "rates",
+                    "features",
+                    "icon_url",
+                    "precision",
+                    "extra_id",
+                    "address_regex",
+                    "extra_id_regex",
+                    "contract_address",
+                    "warnings"
+                ],
+                "example": {
+                    "symbol": "btc",
+                    "network": "mainnet",
+                    "legacy_symbol": "btc",
+                    "name": "Bitcoin",
+                    "rates": [
+                        "fixed",
+                        "floating"
+                    ],
+                    "features": [
+                        "custom_fee"
+                    ],
+                    "icon_url": "https://images.stealthex.io/coins-color/6255bc60422d1c0017b74f3f-btc_c.svg",
+                    "precision": null,
+                    "extra_id": null,
+                    "address_regex": "^[13][a-km-zA-HJ-NP-Z1-9]{25,80}$|^(bc1)[0-9A-Za-z]{25,80}$",
+                    "extra_id_regex": null,
+                    "contract_address": null,
+                    "warnings": {
+                        "deposit": [],
+                        "withdrawal": []
+                    }
+                }
+            },
+            "Exchange": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "A unique identifier of the exchange."
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "waiting",
+                            "confirming",
+                            "exchanging",
+                            "sending",
+                            "verifying",
+                            "finished",
+                            "failed",
+                            "refunded",
+                            "expired"
+                        ],
+                        "description": "The current state of the exchange."
+                    },
+                    "rate": {
+                        "type": "string",
+                        "enum": [
+                            "floating",
+                            "fixed"
+                        ],
+                        "description": "The exchange rate type."
+                    },
+                    "deposit": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {
+                                "type": "string",
+                                "description": "The ticker symbol of the sending currency."
+                            },
+                            "network": {
+                                "type": "string",
+                                "description": "The blockchain network on which the sending currency operates."
+                            },
+                            "amount": {
+                                "type": "number",
+                                "description": "The actual amount we received."
+                            },
+                            "expected_amount": {
+                                "type": "number",
+                                "description": "The amount we expect to receive."
+                            },
+                            "address": {
+                                "type": "string",
+                                "description": "The blockchain address to which the funds should be sent."
+                            },
+                            "extra_id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "Additional ID for the blockchain address if the sending currency supports Memo/Destination Tag."
+                            },
+                            "tx_hash": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "The transaction hash."
+                            },
+                            "address_explorer_url": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "URL of the address in the blockchain explorer."
+                            },
+                            "tx_explorer_url": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "URL of the transaction in the blockchain explorer."
+                            }
+                        },
+                        "required": [
+                            "symbol",
+                            "network",
+                            "amount",
+                            "expected_amount",
+                            "address",
+                            "extra_id",
+                            "tx_hash",
+                            "address_explorer_url",
+                            "tx_explorer_url"
+                        ],
+                        "description": "Details about the exchange deposit. This includes information about the currency being sent by the user."
+                    },
+                    "withdrawal": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {
+                                "type": "string",
+                                "description": "The ticker symbol of the receiving currency."
+                            },
+                            "network": {
+                                "type": "string",
+                                "description": "The blockchain network on which the receiving currency operates."
+                            },
+                            "amount": {
+                                "type": "number",
+                                "description": "The actual amount we sent."
+                            },
+                            "expected_amount": {
+                                "type": "number",
+                                "description": "The amount we expect to sent."
+                            },
+                            "address": {
+                                "type": "string",
+                                "description": "Recipient's blockchain address"
+                            },
+                            "extra_id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "Additional ID for recipient's blockchain address if the receiving currency supports Memo/Destination Tag."
+                            },
+                            "tx_hash": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "The transaction hash."
+                            },
+                            "address_explorer_url": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "URL of the address in the blockchain explorer."
+                            },
+                            "tx_explorer_url": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "URL of the transaction in the blockchain explorer."
+                            }
+                        },
+                        "required": [
+                            "symbol",
+                            "network",
+                            "amount",
+                            "expected_amount",
+                            "address",
+                            "extra_id",
+                            "tx_hash",
+                            "address_explorer_url",
+                            "tx_explorer_url"
+                        ],
+                        "description": "Details about the exchange withdrawal. This includes information about the currency being received by the user."
+                    },
+                    "refund_address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Blockchain address used for refund if something goes wrong."
+                    },
+                    "refund_extra_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Additional ID for blockchain address used for refund if the sending currency supports Memo/Destination Tag."
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "ISO 8601 timestamp when the exchange was created."
+                    },
+                    "expires_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time",
+                        "description": "ISO 8601 timestamp when the fixed rate exchange will expire."
+                    }
+                },
+                "required": [
+                    "id",
+                    "status",
+                    "rate",
+                    "deposit",
+                    "withdrawal",
+                    "refund_address",
+                    "refund_extra_id",
+                    "created_at",
+                    "expires_at"
+                ],
+                "example": {
+                    "id": "sINzzXASW",
+                    "status": "waiting",
+                    "rate": "floating",
+                    "deposit": {
+                        "symbol": "btc",
+                        "network": "mainnet",
+                        "amount": 0.1,
+                        "expected_amount": 0.1,
+                        "address": "bc1qwjudfcur52uy4jv0z0dlnfl8tfe2cyrgtfz8f5",
+                        "extra_id": null,
+                        "tx_hash": null,
+                        "address_explorer_url": "https://blockchair.com/bitcoin/address/bc1qwjudfcur52uy4jv0z0dlnfl8tfe2cyrgtfz8f5",
+                        "tx_explorer_url": null
+                    },
+                    "withdrawal": {
+                        "symbol": "eth",
+                        "network": "mainnet",
+                        "amount": 1.79467607,
+                        "expected_amount": 1.79467607,
+                        "address": "0xb794f5ea0ba39494ce839613fffba74279579268",
+                        "extra_id": null,
+                        "tx_hash": null,
+                        "address_explorer_url": "https://blockchair.com/ethereum/address/0xb794f5ea0ba39494ce839613fffba74279579268",
+                        "tx_explorer_url": null
+                    },
+                    "refund_address": null,
+                    "refund_extra_id": null,
+                    "created_at": "2024-06-25T13:13:29.501Z",
+                    "expires_at": null
+                }
+            }
+        },
+        "parameters": {}
+    },
+    "paths": {
+        "/v4/rates/range": {
+            "post": {
+                "operationId": "getExchangeRange",
+                "summary": "Get exchange range",
+                "tags": [
+                    "Rates"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "route": {
+                                        "type": "object",
+                                        "properties": {
+                                            "from": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "symbol": {
+                                                        "type": "string",
+                                                        "description": "The ticker symbol of the sending currency."
+                                                    },
+                                                    "network": {
+                                                        "type": "string",
+                                                        "description": "The blockchain network on which the sending currency operates."
+                                                    }
+                                                },
+                                                "required": [
+                                                    "symbol",
+                                                    "network"
+                                                ]
+                                            },
+                                            "to": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "symbol": {
+                                                        "type": "string",
+                                                        "description": "The ticker symbol of the receiving currency."
+                                                    },
+                                                    "network": {
+                                                        "type": "string",
+                                                        "description": "The blockchain network on which the receiving currency operates."
+                                                    }
+                                                },
+                                                "required": [
+                                                    "symbol",
+                                                    "network"
+                                                ]
+                                            }
+                                        },
+                                        "required": [
+                                            "from",
+                                            "to"
+                                        ]
+                                    },
+                                    "estimation": {
+                                        "type": "string",
+                                        "enum": [
+                                            "direct",
+                                            "reversed"
+                                        ],
+                                        "description": "Estimation direction. Reversed estimation is only available for fixed rate."
+                                    },
+                                    "rate": {
+                                        "type": "string",
+                                        "enum": [
+                                            "floating",
+                                            "fixed"
+                                        ]
+                                    },
+                                    "market": {
+                                        "type": "string",
+                                        "enum": [
+                                            "binance",
+                                            "kucoin",
+                                            "gateio",
+                                            "oneinch",
+                                            "huobi",
+                                            "bybit",
+                                            "mexc"
+                                        ],
+                                        "description": "Market name to use. Specify it when a particular provider is required, such as for jurisdiction reasons."
+                                    },
+                                    "additional_fee_percent": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 20
+                                    }
+                                },
+                                "required": [
+                                    "route",
+                                    "estimation",
+                                    "rate"
+                                ],
+                                "example": {
+                                    "route": {
+                                        "from": {
+                                            "symbol": "btc",
+                                            "network": "mainnet"
+                                        },
+                                        "to": {
+                                            "symbol": "eth",
+                                            "network": "mainnet"
+                                        }
+                                    },
+                                    "estimation": "direct",
+                                    "rate": "floating"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Range"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "err": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "NoPair"
+                                                    ]
+                                                },
+                                                "details": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "err"
+                                    ],
+                                    "example": {
+                                        "err": {
+                                            "kind": "NoPair",
+                                            "details": "…"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "err": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "NotAllowed"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "NoExchangeRoute"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "RouteIsDisabled"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "MarketUnavailable"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "details": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "err"
+                                    ],
+                                    "example": {
+                                        "err": {
+                                            "kind": "NotAllowed",
+                                            "details": "…"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v4/rates/estimated-amount": {
+            "post": {
+                "operationId": "getEstimatedExchangeAmount",
+                "summary": "Get estimated exchange amount",
+                "tags": [
+                    "Rates"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "route": {
+                                        "type": "object",
+                                        "properties": {
+                                            "from": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "symbol": {
+                                                        "type": "string",
+                                                        "description": "The ticker symbol of the sending currency."
+                                                    },
+                                                    "network": {
+                                                        "type": "string",
+                                                        "description": "The blockchain network on which the sending currency operates."
+                                                    }
+                                                },
+                                                "required": [
+                                                    "symbol",
+                                                    "network"
+                                                ]
+                                            },
+                                            "to": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "symbol": {
+                                                        "type": "string",
+                                                        "description": "The ticker symbol of the receiving currency."
+                                                    },
+                                                    "network": {
+                                                        "type": "string",
+                                                        "description": "The blockchain network on which the receiving currency operates."
+                                                    }
+                                                },
+                                                "required": [
+                                                    "symbol",
+                                                    "network"
+                                                ]
+                                            }
+                                        },
+                                        "required": [
+                                            "from",
+                                            "to"
+                                        ]
+                                    },
+                                    "amount": {
+                                        "type": "number",
+                                        "exclusiveMinimum": 0
+                                    },
+                                    "estimation": {
+                                        "type": "string",
+                                        "enum": [
+                                            "direct",
+                                            "reversed"
+                                        ],
+                                        "description": "Estimation direction. Reversed estimation is only available for fixed rate."
+                                    },
+                                    "rate": {
+                                        "type": "string",
+                                        "enum": [
+                                            "floating",
+                                            "fixed"
+                                        ]
+                                    },
+                                    "market": {
+                                        "type": "string",
+                                        "enum": [
+                                            "binance",
+                                            "kucoin",
+                                            "gateio",
+                                            "oneinch",
+                                            "huobi",
+                                            "bybit",
+                                            "mexc"
+                                        ],
+                                        "description": "Market name to use. Specify it when a particular provider is required, such as for jurisdiction reasons."
+                                    },
+                                    "additional_fee_percent": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 20
+                                    }
+                                },
+                                "required": [
+                                    "route",
+                                    "amount",
+                                    "estimation",
+                                    "rate"
+                                ],
+                                "example": {
+                                    "route": {
+                                        "from": {
+                                            "symbol": "btc",
+                                            "network": "mainnet"
+                                        },
+                                        "to": {
+                                            "symbol": "eth",
+                                            "network": "mainnet"
+                                        }
+                                    },
+                                    "estimation": "direct",
+                                    "rate": "floating",
+                                    "amount": 0.1
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Estimate"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "err": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "InvalidAmount"
+                                                    ]
+                                                },
+                                                "details": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "err"
+                                    ],
+                                    "example": {
+                                        "err": {
+                                            "kind": "InvalidAmount",
+                                            "details": "…"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "err": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "NoPair"
+                                                    ]
+                                                },
+                                                "details": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "err"
+                                    ],
+                                    "example": {
+                                        "err": {
+                                            "kind": "NoPair",
+                                            "details": "…"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "err": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "NotAllowed"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "NoExchangeRoute"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "RouteIsDisabled"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "MarketUnavailable"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "details": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "err"
+                                    ],
+                                    "example": {
+                                        "err": {
+                                            "kind": "NotAllowed",
+                                            "details": "…"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v4/currencies": {
+            "get": {
+                "operationId": "listCurrencies",
+                "summary": "List currencies",
+                "tags": [
+                    "Currencies"
+                ],
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 250,
+                            "default": 50,
+                            "description": "If provided, specifies the number of returned results."
+                        },
+                        "required": false,
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "default": 0,
+                            "description": "If provided, specifies the offset of returned results."
+                        },
+                        "required": false,
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "description": "If provided, filters all the currencies available on the provided network."
+                        },
+                        "required": false,
+                        "name": "network",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "floating",
+                                "fixed"
+                            ],
+                            "description": "If provided, filters all the currencies supporting the provided rate."
+                        },
+                        "required": false,
+                        "name": "rate",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "custom_fee"
+                            ],
+                            "description": "If provided, filters all the currencies supporting the provided feature."
+                        },
+                        "required": false,
+                        "name": "feature",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "binance",
+                                "kucoin",
+                                "gateio",
+                                "oneinch",
+                                "huobi",
+                                "bybit",
+                                "mexc"
+                            ],
+                            "description": "Market name to use. Specify it when a particular provider is required, such as for jurisdiction reasons."
+                        },
+                        "required": false,
+                        "name": "market",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false"
+                            ],
+                            "default": "false",
+                            "description": "Specifies whether to return all available route pairs with currency."
+                        },
+                        "required": false,
+                        "name": "include_available_routes",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "deposit",
+                                "withdrawal"
+                            ],
+                            "default": "withdrawal",
+                            "description": "Specifies the direction of the returned route pairs. Use in conjunction with `include_available_pairs`."
+                        },
+                        "required": false,
+                        "name": "available_routes_direction",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Currency"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v4/currencies/{symbol}/{network}": {
+            "get": {
+                "operationId": "getCurrency",
+                "summary": "Get currency",
+                "tags": [
+                    "Currencies"
+                ],
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "string",
+                            "example": "btc"
+                        },
+                        "required": true,
+                        "name": "symbol",
+                        "in": "path"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "example": "mainnet"
+                        },
+                        "required": true,
+                        "name": "network",
+                        "in": "path"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false"
+                            ],
+                            "default": "false",
+                            "description": "Specifies whether to return all available route pairs with the provided currency."
+                        },
+                        "required": false,
+                        "name": "include_available_routes",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "deposit",
+                                "withdrawal"
+                            ],
+                            "default": "withdrawal",
+                            "description": "Specifies the direction of the returned route pairs. Use in conjunction with `include_available_pairs`."
+                        },
+                        "required": false,
+                        "name": "available_routes_direction",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Currency"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "err": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "NotFound"
+                                                    ]
+                                                },
+                                                "details": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "err"
+                                    ],
+                                    "example": {
+                                        "err": {
+                                            "kind": "NotFound",
+                                            "details": "…"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v4/exchanges": {
+            "get": {
+                "operationId": "listExchanges",
+                "summary": "List exchanges",
+                "tags": [
+                    "Exchanges"
+                ],
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 250,
+                            "default": 50,
+                            "description": "If provided, specifies the number of returned results."
+                        },
+                        "required": false,
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "default": 0,
+                            "description": "If provided, specifies the offset of returned results."
+                        },
+                        "required": false,
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "The date-time notation as defined by RFC 3339, section 5.6, for example, 2017-07-21T17:32:28Z."
+                        },
+                        "required": false,
+                        "name": "created_before",
+                        "in": "query"
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "The date-time notation as defined by RFC 3339, section 5.6, for example, 2017-07-21T17:32:28Z."
+                        },
+                        "required": false,
+                        "name": "created_after",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Exchange"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "createExchange",
+                "summary": "Create exchange",
+                "tags": [
+                    "Exchanges"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "route": {
+                                        "type": "object",
+                                        "properties": {
+                                            "from": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "symbol": {
+                                                        "type": "string",
+                                                        "description": "The ticker symbol of the sending currency."
+                                                    },
+                                                    "network": {
+                                                        "type": "string",
+                                                        "description": "The blockchain network on which the sending currency operates."
+                                                    }
+                                                },
+                                                "required": [
+                                                    "symbol",
+                                                    "network"
+                                                ]
+                                            },
+                                            "to": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "symbol": {
+                                                        "type": "string",
+                                                        "description": "The ticker symbol of the receiving currency."
+                                                    },
+                                                    "network": {
+                                                        "type": "string",
+                                                        "description": "The blockchain network on which the receiving currency operates."
+                                                    }
+                                                },
+                                                "required": [
+                                                    "symbol",
+                                                    "network"
+                                                ]
+                                            }
+                                        },
+                                        "required": [
+                                            "from",
+                                            "to"
+                                        ]
+                                    },
+                                    "amount": {
+                                        "type": "number",
+                                        "exclusiveMinimum": 0
+                                    },
+                                    "estimation": {
+                                        "type": "string",
+                                        "enum": [
+                                            "direct",
+                                            "reversed"
+                                        ],
+                                        "description": "Estimation direction. Reversed estimation is only available for fixed rate."
+                                    },
+                                    "rate": {
+                                        "type": "string",
+                                        "enum": [
+                                            "floating",
+                                            "fixed"
+                                        ]
+                                    },
+                                    "rate_id": {
+                                        "type": "string",
+                                        "description": "The ID of the fixed rate to be used in the exchange. **Required when using fixed rate.** It can be obtained by calling the [Get estimated exchange amount](#tag/rates/POST/v4/rates/estimated-amount) method."
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "description": "Recipient's blockchain address."
+                                    },
+                                    "extra_id": {
+                                        "type": "string",
+                                        "description": "Additional ID for recipient's blockchain address if the receiving currency supports Memo/Destination Tag."
+                                    },
+                                    "refund_address": {
+                                        "type": "string",
+                                        "description": "Blockchain address used for refund if something goes wrong."
+                                    },
+                                    "refund_extra_id": {
+                                        "type": "string",
+                                        "description": "Additional ID for blockchain address used for refund if the sending currency supports Memo/Destination Tag."
+                                    },
+                                    "market": {
+                                        "type": "string",
+                                        "enum": [
+                                            "binance",
+                                            "kucoin",
+                                            "gateio",
+                                            "oneinch",
+                                            "huobi",
+                                            "bybit",
+                                            "mexc"
+                                        ],
+                                        "description": "Market name to use. Specify it when a particular provider is required, such as for jurisdiction reasons."
+                                    },
+                                    "additional_fee_percent": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 20
+                                    }
+                                },
+                                "required": [
+                                    "route",
+                                    "amount",
+                                    "estimation",
+                                    "rate",
+                                    "address"
+                                ],
+                                "example": {
+                                    "route": {
+                                        "from": {
+                                            "symbol": "btc",
+                                            "network": "mainnet"
+                                        },
+                                        "to": {
+                                            "symbol": "eth",
+                                            "network": "mainnet"
+                                        }
+                                    },
+                                    "amount": 0.1,
+                                    "estimation": "direct",
+                                    "rate": "floating",
+                                    "address": "0xb794f5ea0ba39494ce839613fffba74279579268"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Exchange"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "err": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "RateId"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "ExtraId"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "InvalidData"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "InvalidAmount"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "NoUserApiKey"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "details": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "err"
+                                    ],
+                                    "example": {
+                                        "err": {
+                                            "kind": "InvalidAmount",
+                                            "details": "…"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "err": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "NoPair"
+                                                    ]
+                                                },
+                                                "details": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "err"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "err": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "NotAllowed"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "NoExchangeRoute"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "RouteIsDisabled"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "MarketUnavailable"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "details": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "err"
+                                    ],
+                                    "example": {
+                                        "err": {
+                                            "kind": "RouteIsDisabled",
+                                            "details": "…"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v4/exchanges/{id}": {
+            "get": {
+                "operationId": "getExchange",
+                "summary": "Get exchange",
+                "tags": [
+                    "Exchanges"
+                ],
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "string",
+                            "example": "uXvf7CWgc"
+                        },
+                        "required": true,
+                        "name": "id",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Exchange"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "err": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "NotFound"
+                                                    ]
+                                                },
+                                                "details": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "err"
+                                    ],
+                                    "example": {
+                                        "err": {
+                                            "kind": "NotFound",
+                                            "details": "…"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "setTransactionHash",
+                "summary": "Set transaction hash",
+                "description": "\nThis method can be used for the manual addition of the transaction hash to an exchange.\nThis will allow your users to confirm sent transactions right in your interface.\n",
+                "tags": [
+                    "Exchanges"
+                ],
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true,
+                        "name": "id",
+                        "in": "path"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "tx_hash": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "tx_hash"
+                                ],
+                                "example": {
+                                    "tx_hash": "0x9c53b874fde20fdf6c59c9d08d85b0f5fd4e1821ce021bfec83617b73aa8b8c0"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "err": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "NotFound"
+                                                    ]
+                                                },
+                                                "details": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "err"
+                                    ],
+                                    "example": {
+                                        "err": {
+                                            "kind": "NotFound",
+                                            "details": "…"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "webhooks": {}
+}
